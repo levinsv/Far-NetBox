@@ -309,10 +309,12 @@ private:
   TSessionSource FSource;
   bool FSaveOnly;
   UnicodeString FLogicalHostName;
-
+  UnicodeString FDescription;
 public:
   void SetHostName(UnicodeString AValue);
   UnicodeString GetHostNameExpanded() const;
+  void SetDescription(UnicodeString Value);
+  UnicodeString GetDescription() const;
   void SetPortNumber(intptr_t Value);
   void SetUserName(UnicodeString Value);
   UnicodeString GetUserNameExpanded() const;

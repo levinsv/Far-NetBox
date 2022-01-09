@@ -300,6 +300,7 @@ void TSessionData::NonPersistant()
 
 #define BASE_PROPERTIES \
   PROPERTY(HostName); \
+  PROPERTY(Description); \
   PROPERTY(PortNumber); \
   PROPERTY(Password); \
   PROPERTY(PublicKeyFile); \
@@ -577,6 +578,7 @@ void TSessionData::DoLoad(THierarchicalStorage *Storage, bool PuttyImport, bool 
 
   SetPortNumber(Storage->ReadInteger("PortNumber", GetPortNumber()));
   SetUserName(Storage->ReadString("UserName", SessionGetUserName()));
+  SetDescription(Storage->ReadString("Description", GetDescription()));
   // must be loaded after UserName, because HostName may be in format user@host
   SetHostName(Storage->ReadString("HostName", GetHostName()));
 
@@ -945,6 +947,7 @@ void TSessionData::DoSave(THierarchicalStorage *Storage,
   Storage->WriteString("Version", ::VersionNumberToStr(::GetCurrentVersionNumber()));
   WRITE_DATA(String, HostName);
   WRITE_DATA(Integer, PortNumber);
+  WRITE_DATA(String, Description);
   WRITE_DATA_EX(Integer, "PingInterval", GetPingInterval() / SecsPerMin, );
   WRITE_DATA_EX(Integer, "PingIntervalSecs", GetPingInterval() % SecsPerMin, );
   Storage->DeleteValue("PingIntervalSec"); // obsolete
@@ -2313,6 +2316,15 @@ void TSessionData::SetHostName(UnicodeString AValue)
     Shred(XPassword);
     Shred(XNewPassword);
   }
+}
+
+void TSessionData::SetDescription(UnicodeString Value)
+{
+    SET_SESSION_PROPERTY(Description);
+}
+UnicodeString TSessionData::GetDescription() const
+{
+    return FDescription;
 }
 
 UnicodeString TSessionData::GetHostNameExpanded() const

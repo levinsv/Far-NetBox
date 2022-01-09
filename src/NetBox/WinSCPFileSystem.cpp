@@ -27,15 +27,20 @@ TSessionPanelItem::TSessionPanelItem(const TSessionData *ASessionData) :
   FSessionData = ASessionData;
 }
 
-void TSessionPanelItem::SetPanelModes(TFarPanelModes *PanelModes)
+void TSessionPanelItem::SetPanelModes(TFarPanelModes* PanelModes)
 {
-  DebugAssert(FarPlugin);
-  std::unique_ptr<TStrings> ColumnTitles(new TStringList());
-  ColumnTitles->Add(FarPlugin->GetMsg(NB_SESSION_NAME_COL_TITLE));
-  for (intptr_t Index = 0; Index < PANEL_MODES_COUNT; ++Index)
-  {
-    PanelModes->SetPanelMode(Index, L"N", L"0", ColumnTitles.get(), false, false, false);
-  }
+    DebugAssert(FarPlugin);
+    std::unique_ptr<TStrings> ColumnTitles(new TStringList());
+    ColumnTitles->Add(FarPlugin->GetMsg(NB_SESSION_NAME_COL_TITLE));
+    ColumnTitles->Add(L"Description");
+    std::unique_ptr<TStrings> ColumnTitles2(new TStringList());
+    ColumnTitles2->Add(FarPlugin->GetMsg(NB_SESSION_NAME_COL_TITLE));
+
+    for (intptr_t Index = 0; Index < PANEL_MODES_COUNT; ++Index)
+    {
+        if (Index != 2) PanelModes->SetPanelMode(Index, L"N", L"0", ColumnTitles2.get(), false, false, false);
+        else PanelModes->SetPanelMode(Index, L"N,Z", L"0,50%", ColumnTitles.get(), false, false, false);
+    }
 }
 
 void TSessionPanelItem::SetKeyBarTitles(TFarKeyBarTitles *KeyBarTitles)
@@ -52,14 +57,15 @@ void TSessionPanelItem::SetKeyBarTitles(TFarKeyBarTitles *KeyBarTitles)
 }
 
 void TSessionPanelItem::GetData(
-  PLUGINPANELITEMFLAGS & /*Flags*/, UnicodeString &AFileName, int64_t & /*Size*/,
-  uintptr_t & /*FileAttributes*/,
-  TDateTime & /*LastWriteTime*/, TDateTime & /*LastAccess*/,
-  uintptr_t & /*NumberOfLinks*/, UnicodeString & /*Description*/,
-  UnicodeString & /*Owner*/, void *&UserData, size_t & /*CustomColumnNumber*/)
+    PLUGINPANELITEMFLAGS& /*Flags*/, UnicodeString& AFileName, int64_t& /*Size*/,
+    uintptr_t& /*FileAttributes*/,
+    TDateTime& /*LastWriteTime*/, TDateTime& /*LastAccess*/,
+    uintptr_t& /*NumberOfLinks*/, UnicodeString& Description,
+    UnicodeString& /*Owner*/, void*& UserData, size_t& /*CustomColumnNumber*/)
 {
-  AFileName = base::UnixExtractFileName(FSessionData->GetName());
-  UserData = ToPtr(const_cast<TSessionData *>(FSessionData));
+    AFileName = base::UnixExtractFileName(FSessionData->GetName());
+    Description = FSessionData->GetDescription();
+    UserData = ToPtr(const_cast<TSessionData*>(FSessionData));
 }
 
 TSessionFolderPanelItem::TSessionFolderPanelItem(UnicodeString Folder) :
@@ -613,12 +619,20 @@ void TWinSCPFileSystem::DuplicateOrRenameSession(TSessionData *Data,
 {
   DebugAssert(Data);
   UnicodeString Name = Data->GetName();
+  Name += L"#" + Data->GetDescription();
   if (GetWinSCPPlugin()->InputBox(GetMsg(Duplicate ? NB_DUPLICATE_SESSION_TITLE : NB_RENAME_SESSION_TITLE),
       GetMsg(Duplicate ? NB_DUPLICATE_SESSION_PROMPT : NB_RENAME_SESSION_PROMPT),
       Name, 0) &&
     !Name.IsEmpty() && (Name != Data->GetName()))
   {
     Name = ReplaceChar(Name, L'\\', L'/');
+    intptr_t pos;
+    pos = Name.RPos('#');
+    if (pos > 0) {
+        UnicodeString Desc = Name.SubStr(pos + 1);
+        Name = Name.Delete(pos, Name.GetLength() - pos + 1);
+        Data->SetDescription(Desc);
+    }
     TNamedObject *EData = StoredSessions->FindByName(Name);
     if ((EData != nullptr) && (EData != Data))
     {
@@ -709,11 +723,23 @@ void TWinSCPFileSystem::EditConnectSession(TSessionData *Data, bool Edit, bool N
             Name = base::UnixIncludeTrailingBackslash(FSessionsFolder);
           }
           if (Data)
-            Name += Data->GetSessionName();
+          {
+              Name += Data->GetSessionName();
+              Name += L"#" + Data->SessionGetUserName();
+          }
           if (GetWinSCPPlugin()->InputBox(GetMsg(NB_NEW_SESSION_NAME_TITLE),
               GetMsg(NB_NEW_SESSION_NAME_PROMPT), Name, 0) &&
             !Name.IsEmpty())
           {
+              intptr_t pos;
+              pos = Name.RPos('#');
+              if (pos > 0) {
+                  UnicodeString Desc;
+                  Desc = Name.SubStr(pos + 1);
+                  Name = Name.Delete(pos, Name.GetLength() - pos + 1);
+                  Data->SetDescription(Desc);
+              }
+              else Data->SetDescription(Data->SessionGetUserName());
             if (StoredSessions->FindByName(Name))
             {
               throw Exception(FORMAT(GetMsg(NB_SESSION_ALREADY_EXISTS_ERROR), Name));
